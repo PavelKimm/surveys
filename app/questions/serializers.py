@@ -26,10 +26,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
 
 class QuestionDetailSerializer(QuestionListSerializer):
     answers = serializers.SerializerMethodField()
-
-    # class Meta:
-    #     model = Question
-    #     fields = '__all__'
+    survey = serializers.IntegerField(source='survey.id', read_only=True)
 
     @staticmethod
     def get_answers(obj):
@@ -42,10 +39,18 @@ class QuestionDetailSerializer(QuestionListSerializer):
 
 class TakenSurveySerializer(serializers.ModelSerializer):
     questions = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
 
     class Meta:
         model = TakenSurvey
         exclude = ('answers',)
+
+    @staticmethod
+    def get_user(obj):
+        if obj.anonymously:
+            return None
+        else:
+            return obj.user.id
 
     @staticmethod
     def get_questions(obj):
@@ -75,3 +80,7 @@ class QuestionAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuestionAnswer
         fields = '__all__'
+
+
+class QuestionAnswerDetailSerializer(QuestionAnswerSerializer):
+    question = serializers.IntegerField(source='question.id', read_only=True)

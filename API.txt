@@ -1,0 +1,119 @@
+Авторизация:
+(POST) http://localhost:8000/api/v1/login/
+Request body:
+    {
+        "username": str,
+        "password": str
+    }
+
+
+
+Все опросы:
+(GET) http://localhost:8000/api/v1/surveys/
+Актуальные (незавершенные) опросы:
+(GET) http://localhost:8000/api/v1/surveys/?filter=actual
+Завершенные опросы:
+(GET) http://localhost:8000/api/v1/surveys/?filter=finished
+
+Детальная информация по опросу:
+(GET) http://localhost:8000/api/v1/surveys/<int:pk>/
+
+Создание нового опроса:
+(POST) http://localhost:8000/api/v1/surveys/
+Request body:
+    {
+        "name": str,
+        "description": str,
+        "finished": date (строка формата "YYYY-MM-DD")
+    }
+
+Изменение опроса:
+(PATCH) http://localhost:8000/api/v1/surveys/<int:pk>/
+Можно изменять поля name, description, finished
+
+Удаление опроса:
+(DELETE) http://localhost:8000/api/v1/surveys/<int:pk>/
+
+
+
+Все вопросы:
+(GET) http://localhost:8000/api/v1/questions/
+Вопросы определенного опроса:
+(GET) http://localhost:8000/api/v1/questions/?survey-id=<int>
+
+Детальная информация по вопросу:
+(GET) http://localhost:8000/api/v1/questions/<int:pk>/
+
+Создание нового вопроса:
+(POST) http://localhost:8000/api/v1/questions/
+Request body:
+    {
+        "survey": int (id опроса),
+        "question_text": str,
+        "answer_type": int (FREE_TEXT – 0, SINGLE_CHOICE – 1, MULTIPLE_CHOICE – 2)
+    }
+
+Изменение вопроса:
+(PATCH) http://localhost:8000/api/v1/questions/<int:pk>/
+Можно изменить поле question_text;
+answer_type можно изменить, если ответов на данный вопрос еще нет
+
+Удаление вопроса:
+(DELETE) http://localhost:8000/api/v1/questions/<int:pk>/
+
+
+
+Варианты ответов на вопросы:
+(GET) http://localhost:8000/api/v1/question-answers/
+Варианты ответов на определенный вопрос:
+(GET) http://localhost:8000/api/v1/question-answers/?question-id=<int>
+
+Создание нового варианта ответа на вопрос:
+(POST) http://localhost:8000/api/v1/question-answers/
+Request body:
+    {
+        "question": int (id вопроса),
+        "answer_text": str
+    }
+
+Изменение варианта ответа на вопрос:
+(PATCH) http://localhost:8000/api/v1/question-answers/<int:pk>/
+Можно изменить поле answer_text
+
+Удаление варианта ответа на вопрос:
+(DELTE) http://localhost:8000/api/v1/question-answers/<int:pk>/
+
+
+
+Пройденные опросы (свои):
+(GET) http://localhost:8000/api/v1/taken-surveys/
+Пройденные опросы, фильтрация по определенному опросу (свои):
+(GET) http://localhost:8000/api/v1/taken-surveys/?survey-id=2
+
+
+
+Пройденные опросы пользователей
+(GET) http://localhost:8000/api/v1/taken-surveys-admin/
+Query params:
+    ?user-id=<int> – фильтрация по id юзера (неанонимные опросы)
+    ?survey-id=<int> – фильтрация по id опроса
+
+
+
+Начать опрос:
+(POST) http://localhost:8000/api/v1/taken-surveys/
+{
+    "survey_id": int,
+    "anonymously": bool
+}
+
+
+Ответить на вопрос опроса:
+(POST) http://localhost:8000/api/v1/taken-surveys/answer-question/
+    {
+        "taken_survey_id": int,
+        "question_id": int,
+        "question_answer": list –> MULTIPLE_ANSWER
+    }
+        // "question_answer": int –> SINGLE_ANSWER
+        // "question_answer": str –> FREE_TEXT

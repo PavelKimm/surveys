@@ -44,6 +44,7 @@ class TakenSurvey(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, blank=True, null=True,
                              related_name='taken_surveys')
     answers = models.ManyToManyField(QuestionAnswer)
+    anonymously = models.BooleanField(default=False)
 
     def __str__(self):
         return self.survey.name[:30]

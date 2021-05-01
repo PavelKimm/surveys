@@ -3,23 +3,26 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, \
-    HTTP_404_NOT_FOUND
+    HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
 from rest_framework.views import APIView
 
 from questions.models import Survey, Question, TakenSurvey, QuestionAnswer
 from questions.serializers import SurveySerializer, QuestionListSerializer, TakenSurveySerializer, \
-    QuestionAnswerSerializer, QuestionDetailSerializer
+    QuestionAnswerSerializer, QuestionDetailSerializer, QuestionAnswerDetailSerializer
 
 
 class SurveyListView(generics.ListCreateAPIView):
     serializer_class = SurveySerializer
 
     def get_queryset(self):
-        queryset = Survey.objects.exclude(finished__lte=timezone.now())
+        queryset = Survey.objects.all()
 
         filter_ = self.request.query_params.get('filter')
-        if filter_ == 'finished':
+        if filter_ == 'actual':
+            queryset = Survey.objects.exclude(finished__lte=timezone.now())
+        elif filter_ == 'finished':
             queryset = Survey.objects.filter(finished__lte=timezone.now())
+
         return queryset
 
     def post(self, request, *args, **kwargs):
@@ -69,17 +72,14 @@ class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Question.objects.all()
 
     def put(self, request, *args, **kwargs):
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"detail": "Permission denied"}, status=HTTP_403_FORBIDDEN)
-
-        return self.update(request, *args, **kwargs)
+        return Response({"detail": "Use PATCH instead"}, status=HTTP_405_METHOD_NOT_ALLOWED)
 
     def patch(self, request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_staff:
             return Response({"detail": "Permission denied"}, status=HTTP_403_FORBIDDEN)
         answer_type = request.data.get('answer_type')
         obj = Question.objects.filter(pk=kwargs['pk']).first()
-        if obj and obj.answers.count() and obj.answer_type and obj.answer_type != answer_type:
+        if answer_type and obj and obj.answers.count() and obj.answer_type != answer_type:
             return Response({"detail": "This question already has answers, you can't change its answer_type"},
                             status=HTTP_400_BAD_REQUEST)
         return self.partial_update(request, *args, **kwargs)
@@ -108,7 +108,7 @@ class QuestionAnswerListView(generics.ListCreateAPIView):
 
 
 class QuestionAnswerDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = QuestionAnswerSerializer
+    serializer_class = QuestionAnswerDetailSerializer
     queryset = QuestionAnswer.objects.all()
 
     def put(self, request, *args, **kwargs):
@@ -142,9 +142,15 @@ class TakenSurveyListView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         user = request.user
         survey_id = request.data.get('survey_id')
+        anonymously = request.data.get('anonymously')
         if not survey_id:
             return Response({"detail": "survey_id wasn't provided"}, status=HTTP_400_BAD_REQUEST)
-        taken_survey = TakenSurvey.objects.create(user=user, survey_id=survey_id)
+        survey = Survey.objects.filter(pk=survey_id).exclude(finished__lte=timezone.now()).first()
+        if not survey:
+            return Response({"detail": "Actual survey wasn't found"}, status=HTTP_404_NOT_FOUND)
+        if not anonymously:
+            anonymously = False
+        taken_survey = TakenSurvey.objects.create(user=user, survey=survey, anonymously=anonymously)
         return Response(self.serializer_class(taken_survey).data, status=HTTP_201_CREATED)
 
 
@@ -157,7 +163,7 @@ class TakenSurveyListAdminView(generics.ListAPIView):
         user_id = self.request.query_params.get('user-id')
         survey_id = self.request.query_params.get('survey-id')
         if user_id:
-            queryset = queryset.filter(user_id=user_id)
+            queryset = queryset.filter(user_id=user_id, anonymously=False)
         if survey_id:
             queryset = queryset.filter(survey_id=survey_id)
         return queryset

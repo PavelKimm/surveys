@@ -27,5 +27,5 @@ class QuestionAnswerAdmin(admin.ModelAdmin):
 @admin.register(TakenSurvey)
 class TakenSurveyAdmin(admin.ModelAdmin):
     readonly_fields = ('id',)
-    list_display = ('__str__', 'user')
-    fields = ('id', 'survey', 'user')
+    list_display = ('__str__', 'user', 'anonymously')
+    fields = ('id', 'survey', 'user', 'anonymously')
