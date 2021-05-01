@@ -1,9 +1,8 @@
-from django.contrib import admin
 from django.urls import path
 
 from questions.views import (
     SurveyListView, SurveyDetailView, QuestionListView, QuestionDetailView, TakenSurveyListView, AnswerQuestionView,
-    QuestionAnswerListView, QuestionAnswerDetailView
+    QuestionAnswerListView, QuestionAnswerDetailView, TakenSurveyListAdminView
 )
 
 urlpatterns = [
@@ -14,5 +13,6 @@ urlpatterns = [
     path('question-answers/', QuestionAnswerListView.as_view(), name='question-answers-list'),
     path('question-answers/<int:pk>/', QuestionAnswerDetailView.as_view(), name='question-answers-detail'),
     path('taken-surveys/', TakenSurveyListView.as_view(), name='taken-survey-list'),
+    path('taken-surveys-admin/', TakenSurveyListAdminView.as_view(), name='taken-survey-admin-list'),
     path('taken-surveys/answer-question/', AnswerQuestionView.as_view(), name='answer-question'),
 ]

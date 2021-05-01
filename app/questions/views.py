@@ -2,11 +2,13 @@ from django.utils import timezone
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, \
+    HTTP_404_NOT_FOUND
 from rest_framework.views import APIView
 
 from questions.models import Survey, Question, TakenSurvey, QuestionAnswer
-from questions.serializers import SurveySerializer, QuestionSerializer, TakenSurveySerializer, QuestionAnswerSerializer
+from questions.serializers import SurveySerializer, QuestionListSerializer, TakenSurveySerializer, \
+    QuestionAnswerSerializer, QuestionDetailSerializer
 
 
 class SurveyListView(generics.ListCreateAPIView):
@@ -47,7 +49,7 @@ class SurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class QuestionListView(generics.ListCreateAPIView):
-    serializer_class = QuestionSerializer
+    serializer_class = QuestionListSerializer
 
     def get_queryset(self):
         queryset = Question.objects.all()
@@ -63,17 +65,23 @@ class QuestionListView(generics.ListCreateAPIView):
 
 
 class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = QuestionSerializer
+    serializer_class = QuestionDetailSerializer
     queryset = Question.objects.all()
 
     def put(self, request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_staff:
             return Response({"detail": "Permission denied"}, status=HTTP_403_FORBIDDEN)
+
         return self.update(request, *args, **kwargs)
 
     def patch(self, request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_staff:
             return Response({"detail": "Permission denied"}, status=HTTP_403_FORBIDDEN)
+        answer_type = request.data.get('answer_type')
+        obj = Question.objects.filter(pk=kwargs['pk']).first()
+        if obj and obj.answers.count() and obj.answer_type and obj.answer_type != answer_type:
+            return Response({"detail": "This question already has answers, you can't change its answer_type"},
+                            status=HTTP_400_BAD_REQUEST)
         return self.partial_update(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
@@ -140,6 +148,21 @@ class TakenSurveyListView(generics.ListCreateAPIView):
         return Response(self.serializer_class(taken_survey).data, status=HTTP_201_CREATED)
 
 
+class TakenSurveyListAdminView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated, IsAdminUser)
+    serializer_class = TakenSurveySerializer
+
+    def get_queryset(self):
+        queryset = TakenSurvey.objects.all()
+        user_id = self.request.query_params.get('user-id')
+        survey_id = self.request.query_params.get('survey-id')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        if survey_id:
+            queryset = queryset.filter(survey_id=survey_id)
+        return queryset
+
+
 class TakenSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = TakenSurveySerializer
@@ -162,19 +185,31 @@ class AnswerQuestionView(APIView):
         if not question_answer:
             return Response({"detail": "question_answer wasn't provided"}, status=HTTP_400_BAD_REQUEST)
 
-        taken_survey = TakenSurvey.objects.get(pk=taken_survey_id)
-        question = Question.objects.get(pk=question_id)
+        try:
+            taken_survey = TakenSurvey.objects.get(pk=taken_survey_id, user=user)
+            question = Question.objects.get(pk=question_id, survey=taken_survey.survey)
+        except TakenSurvey.DoesNotExist:
+            return Response({"detail": "Taken survey wasn't found"}, status=HTTP_404_NOT_FOUND)
+        except Question.DoesNotExist:
+            return Response({"detail": "Question wasn't found"}, status=HTTP_404_NOT_FOUND)
+
         if question.answer_type == Question.FREE_TEXT:
             question_answer = QuestionAnswer.objects.create(question=question, answer_text=question_answer)
             taken_survey.answers.add(question_answer)
 
         elif question.answer_type == Question.SINGLE_CHOICE:
-            question_answer = QuestionAnswer.objects.get(pk=question_answer)
+            try:
+                question_answer = QuestionAnswer.objects.get(pk=question_answer, question=question)
+            except QuestionAnswer.DoesNotExist:
+                return Response({"detail": "Question answer wasn't found"}, status=HTTP_404_NOT_FOUND)
             taken_survey.answers.add(question_answer)
 
         elif question.answer_type == Question.MULTIPLE_CHOICE:
             for answer in question_answer:
-                question_answer = QuestionAnswer.objects.get(pk=answer)
+                try:
+                    question_answer = QuestionAnswer.objects.get(pk=answer, question=question)
+                except QuestionAnswer.DoesNotExist:
+                    return Response({"detail": "Question answer wasn't found"}, status=HTTP_404_NOT_FOUND)
                 taken_survey.answers.add(question_answer)
 
         return Response({"message": "ok"}, status=HTTP_200_OK)
