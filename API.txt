@@ -5,8 +5,14 @@ Request body:
         "username": str,
         "password": str
     }
-
-
+Токен отправляется в заголовке запроса:
+{
+    "Authorization": "token <TOKEN>"
+}
+Пример:
+{
+    "Authorization": "token 24176093e9c0de087a947a2a0adb1cbc301804a6"
+}
 
 Все опросы:
 (GET) http://localhost:8000/api/v1/surveys/
