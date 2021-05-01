@@ -8,3 +8,7 @@
 
 * ### Запустите docker-compose
 <code> sudo docker-compose up --build </code>
+
+* ### Для создания суперпользователя можно воспользоваться следующими командами в консоли
+<code> sudo docker exec -it surveys bash </code>
+<code> python manage.py createsuperuser </code>
